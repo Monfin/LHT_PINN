@@ -1,0 +1,20 @@
+{
+    // "python.defaultInterpreterPath": "/home/danil/projects/torch_template/.venv/bin/python3.11", 
+    "editor.autoClosingBrackets": "never",
+    "editor.autoClosingComments": "never",
+    "editor.fontFamily": "Consolas, 'Courier New', monospace",
+    "files.autoGuessEncoding": true,
+    "editor.inlineSuggest.enabled": true,
+    "editor.lineHeight": 18,
+    "jupyter.widgetScriptSources": [
+        "unpkg.com",
+        "jsdelivr.com"
+    ],
+    "files.exclude": {
+        "**/.csv": true,
+        "**/.parquet": true,
+        "**/.pkl": true,
+        "**/.xls": true
+    },
+    "editor.autoClosingQuotes": "never"
+}

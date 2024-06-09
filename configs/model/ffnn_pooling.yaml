@@ -1,0 +1,80 @@
+_target_: src.models.pde_lit_model_xy.PDELitModule
+_recursive_: True
+
+conditional_loss: ${conditional_loss}
+
+train_batch_size: ${data.train_batch_size}
+val_batch_size: ${data.val_batch_size}
+
+optimizer: 
+  _target_: torch.optim.Adam
+  _partial_: True
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: True
+  mode: max
+  factor: 0.1 # new_lr = factor & old_lr
+  patience: 2
+
+alpha: 1.0
+beta: 1.0
+nu: 0.0
+
+num_coords: 1
+bc_limits:
+  - ${data.dataset.xmin}
+  - ${data.dataset.xmax}
+
+condition_names:
+  - pdec 
+  - ic
+  - bc_lower 
+  - bc_upper
+
+conditions:
+  pdec: 
+    _target_: src.models.components.utils.conditions.PDEBurgerCondition
+
+  ic:
+    - _target_: src.models.components.utils.conditions.InitialConditions
+  
+  bc:
+    - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+    - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+
+
+net:
+  _target_: src.models.components.pde_nn.PDESimpleNN
+  embedding_dim: 8
+
+  ### Main layers (merged components)
+  layers:
+    ### Main Encoder layer
+    - _target_: src.models.components.encoders.main_sequence_encoder.MainEncoderLayer
+
+      embedding_sequence_dim: ${model.net.embedding_dim}
+      embedding_features_dim: 0
+
+      dropout_inputs: 0.1
+
+      num_coords: 1
+
+      with_time: ${data.collator.with_time}
+
+    ### Down Linear Block
+    - _target_: src.models.components.linear_blocks.linear_down_up_block.LinearDownUpBlock
+
+      down: True
+
+      in_features: ${eval:${model.net.embedding_dim} * 2}
+      out_features: 1
+      activation_type: tanh
+
+      num_layers: 1
+      use_batch_norm: False
+      
+
+compile: False

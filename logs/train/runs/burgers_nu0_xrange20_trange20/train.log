@@ -1,0 +1,13 @@
+[2024-06-02 22:38:47,283][__main__][INFO] - Instantiating datamodule <src.data.lightning_data_module.LitDataModule>
+[2024-06-02 22:38:47,313][__main__][INFO] - Instantiating model <src.models.pde_lit_model_xt.PDELitModule>
+[2024-06-02 22:38:47,371][__main__][INFO] - Instantiating callbacks...
+[2024-06-02 22:38:47,371][utils.instantiators][INFO] - Instantiating callback <lightning.pytorch.callbacks.ModelCheckpoint>
+[2024-06-02 22:38:47,378][utils.instantiators][INFO] - Instantiating callback <lightning.pytorch.callbacks.EarlyStopping>
+[2024-06-02 22:38:47,382][utils.instantiators][INFO] - Instantiating callback <lightning.pytorch.callbacks.RichModelSummary>
+[2024-06-02 22:38:47,384][utils.instantiators][INFO] - Instantiating callback <lightning.pytorch.callbacks.RichProgressBar>
+[2024-06-02 22:38:47,385][utils.instantiators][INFO] - Instantiating callback <lightning.pytorch.callbacks.LearningRateMonitor>
+[2024-06-02 22:38:47,387][__main__][INFO] - Instantiating loggers...
+[2024-06-02 22:38:47,388][utils.instantiators][INFO] - Instantiating logger <lightning.pytorch.loggers.tensorboard.TensorBoardLogger>
+[2024-06-02 22:38:47,423][__main__][INFO] - Instantiating trainer <lightning.pytorch.trainer.Trainer>
+[2024-06-02 22:38:47,795][__main__][INFO] - Starting training!
+[2024-06-02 22:38:49,868][src.data.lightning_data_module][INFO] - Setup data...
