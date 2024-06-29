@@ -15,29 +15,32 @@ tags: ["xt", "simple_pinn"]
 
 seed: 12345
 
+logger:
+  run_name: PINN_basic
+  tags: ${tags}
+
 # set data params
 data:
 
-  dataset: 
-    _target_: src.data.components.dataset.SpatialXTemporalDomain
+  dataset:
+    _target_: src.data.components.dataset.SpatialTemporalDomain
 
     n_samples: 100_000
 
-    xmin: -10
-    xmax: 10
+    coords_limits:
+      x: [0, 5]
 
-    tmin: 0
-    tmax: 20
+    time_limits: [0, 10]
 
-    noise: 1.0e-4
+    noise: 1.0e-6
 
   collator:
     _target_: src.data.components.collate.BaseCollator
     with_coords: True
     with_time: True
 
-  train_batch_size: 128
-  val_batch_size: 128
+  train_batch_size: 256
+  val_batch_size: 256
 
 
 # set trainer params
@@ -45,12 +48,12 @@ trainer:
   accelerator: cpu
 
   min_epochs: 1 # prevents early stopping
-  max_epochs: 3
+  max_epochs: 5
 
   devices: 1
 
   # mixed precision for extra speed-up
-  precision: bf16-mixed
+  precision: 32
 
   log_every_n_steps: 30
 
@@ -68,8 +71,8 @@ model:
   optimizer: 
     _target_: torch.optim.Adam
     _partial_: True
-    lr: 1.0e-3
-    weight_decay: 1.0e-4
+    lr: 1.0e-4
+    weight_decay: 1.0e-6
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -83,18 +86,17 @@ model:
   nu: 0.0
   
   num_coords: 1
-  bc_limits:
-    - ${data.dataset.xmin}
-    - ${data.dataset.xmax}
-
+  bc_limits: ${data.dataset.coords_limits}
+  
+  # pde + other conditions to pde
   condition_names:
-    - pdec 
+    - pdec
     - ic
     - bc_lower
     - bc_upper
 
   conditions:
-    pdec: 
+    pdec:
       _target_: src.models.components.utils.conditions.PDEBurgerCondition
 
     other_pdec:
@@ -103,9 +105,9 @@ model:
     ic:
       - _target_: src.models.components.utils.conditions.InitialConditions
     
-    bc: []
-      # - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
-      # - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+    bc:
+      - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+      - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
 
   net:
     _target_: src.models.components.pde_nn.PDESimpleNN

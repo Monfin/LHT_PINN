@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 rootutils.setup_root(search_from=__file__, indicator=".project-root", pythonpath=True)
 
 OmegaConf.register_new_resolver("eval", eval)
-OmegaConf.register_new_resolver("len2bool", lambda x: True if len(x) > 0 else False) 
+OmegaConf.register_new_resolver("len", len) 
 # ------------------------------------------------------------------------------------ #
 # the setup_root above is equivalent to:
 # - adding project root dir to PYTHONPATH
@@ -66,6 +66,8 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     log.info("Instantiating loggers...")
     logger: List[Logger] = instantiate_loggers(cfg.get("logger"))
 
+    print(logger)
+
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
 
@@ -79,7 +81,6 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     }
 
     if cfg.get("train"):
-        log.info("Starting training!")
         trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
 
     train_metrics = trainer.callback_metrics

@@ -7,7 +7,7 @@ defaults:
   - data: coords_time_dataset.yaml
   - model: ffnn_pooling.yaml
   - trainer: cpu.yaml
-  - logger: tensorboard.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - logger: mlflow.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - experiment: null
   - callbacks: default.yaml
   - paths: default.yaml

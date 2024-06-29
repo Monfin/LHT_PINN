@@ -1,4 +1,4 @@
-_target_: src.models.pde_lit_model_xy.PDELitModule
+_target_: src.models.pde_lit_model_xt.PDELitModule
 _recursive_: True
 
 conditional_loss: ${conditional_loss}
@@ -37,6 +37,8 @@ condition_names:
 conditions:
   pdec: 
     _target_: src.models.components.utils.conditions.PDEBurgerCondition
+
+  other_pdec: []
 
   ic:
     - _target_: src.models.components.utils.conditions.InitialConditions

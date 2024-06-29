@@ -35,13 +35,15 @@ class InitialConditions(nn.Module):
         super().__init__()
 
     def forward(self, coords: Coords) -> torch.Tensor:
-        # return torch.zeros(coords.x.size())
-        return torch.exp(-torch.square(coords.x) / 2)
+        return torch.exp(-torch.square(coords.x) / 2) * torch.exp(-torch.square(coords.y) / 2)
 
 
 class BoundaryXYZConditions(nn.Module):
-    def __init__(self):
+    def __init__(self, temperature: float = 1.0):
         super().__init__()
 
+        self.temperature = temperature
+
+
     def forward(self, inputs: ModelInput) -> torch.Tensor:
-        return torch.zeros(size=inputs.time.size())
+        return torch.ones(size=inputs.time.size()) * self.temperature

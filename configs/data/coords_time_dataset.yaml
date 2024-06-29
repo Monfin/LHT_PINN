@@ -10,11 +10,10 @@ dataset:
 
   n_samples: 10_000
 
-  xmin: -1
-  xmax: 1
+  coords_limits:
+      x: [0, 5]
 
-  tmin: 0
-  tmax: 1
+  time_limits: [0, 10]
 
 collator:
   _target_: src.data.components.collate.BaseCollator

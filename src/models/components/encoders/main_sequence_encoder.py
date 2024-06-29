@@ -32,6 +32,7 @@ class MainEncoderLayer(nn.Module):
             nn.Linear(1, embedding_sequence_dim),
             nn.Tanh()
         ) if with_time else None
+        
 
         if embedding_features_dim > 0:
             # in_features = num_coords + 1 if with_time else num_coords

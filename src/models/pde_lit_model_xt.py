@@ -10,7 +10,6 @@ from torchmetrics import MinMetric, MeanMetric
 from torchmetrics.regression import RelativeSquaredError
 
 from src.data.components.collate import ModelInput, ModelBatch, ModelOutput, Coords
-from src.models.components.utils.conditions import PDEBurgerCondition, InitialConditions, BoundaryXYZConditions
 
 from typing import Dict, Tuple, List, Union
 
@@ -42,16 +41,13 @@ class PDELitModule(L.LightningModule):
 
             conditions: Dict[str, Union[nn.Module, List[nn.Module]]],
 
-            # pdec: PDEBurgerCondition,
-            # ic: List[InitialConditions] = [], 
-            # bc: List[BoundaryXYZConditions] = [],
             num_coords: int = 1,
 
             alpha: float = 1.0,
             beta: float = 1.0,
             nu: float = 0.0,
 
-            bc_limits: List[float] = [0.0],
+            bc_limits: Dict[str, List[float]] = {"x": [0.0]},
 
             scheduler: torch.optim.lr_scheduler = None,
 
@@ -59,6 +55,7 @@ class PDELitModule(L.LightningModule):
         ) -> None:
 
         super(PDELitModule, self).__init__()
+
         self.save_hyperparameters()
 
         self.conditional_loss = conditional_loss
@@ -142,13 +139,14 @@ class PDELitModule(L.LightningModule):
         return self.net(inputs)
     
 
-    def pde(self, u, u_t, u_x, u_xx) -> torch.Tensor:
+    def pde(self, u, u_t, grads_1, grads_2) -> torch.Tensor:
         # Burger's equation
-        return self.hparams.alpha * u_t + self.hparams.beta * u * u_x - self.hparams.nu * u_xx
+        return self.hparams.alpha * u_t + self.hparams.beta * u * grads_1 - self.hparams.nu * grads_2
     
 
-    def other_pde(self, u_x) -> torch.Tensor:
-        return u_x
+    def other_pde(self, grads_1) -> torch.Tensor:
+        # Continuity equation
+        return grads_1
 
 
     def derivative(self, u: torch.Tensor, x: torch.Tensor, n: int = 1):
@@ -177,18 +175,29 @@ class PDELitModule(L.LightningModule):
         solution = u.logits
 
         if solution.requires_grad:
+            _coords = inputs.coords.__dict__.items()
 
-            u_xx = self.derivative(solution, inputs.coords.x, 2)
-            u_t = self.derivative(solution, inputs.time, 1)
+            grads_1, grads_2 = dict(), dict()
 
-            pde = self.pde(solution, u_t[0], u_xx[0], u_xx[1])
+            for key, coord in _coords:
+                if coord is not None:
+                    # compute derivatives (gradient components)
+                    grads_1[key], grads_2[key] = self.derivative(solution, coord, 2)
+
+            # stack coordinates gradients + aggregate
+            grads_1 = torch.concatenate(list(grads_1.values()), dim=-1).sum(dim=-1, keepdim=True)
+            grads_2 = torch.concatenate(list(grads_2.values()), dim=-1).sum(dim=-1, keepdim=True)
+
+            u_t = self.derivative(solution, inputs.time, 1)[0]
+
+            pde = self.pde(solution, u_t, grads_1, grads_2)
 
             loss = self.criterion(pde, self.pdec(inputs))
 
             if self.other_pdec is not None:
                 for criterion, condition in zip(self.other_pdec_criterion, self.other_pdec):
 
-                    other_pde = self.other_pde(u_xx[0])
+                    other_pde = self.other_pde(grads_1)
 
                     loss += criterion(other_pde, condition(inputs))
 
@@ -226,13 +235,12 @@ class PDELitModule(L.LightningModule):
 
             for (key, coord), criterion in zip(_coords, branch_criterion):
                 if coord is not None:
-                    # print(key, self.bc_limits[index] * torch.ones(size=coord.size()))
                     bc_inputs = ModelInput(
                         coords=Coords(
                             **{
                                 nested_key: nested_coord \
                                         if nested_key != key else \
-                                            self.bc_limits[index] * torch.ones(size=nested_coord.size()) \
+                                            self.bc_limits[key][index] * torch.ones(size=nested_coord.size()) \
                                     for nested_key, nested_coord in _coords
                             }
                         ),

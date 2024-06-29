@@ -1,15 +1,15 @@
 import torch
 
+from typing import List, Dict
 
-class SpatialXTemporalDomain2D(torch.utils.data.Dataset):
+
+class SpatialTemporalDomain2D(torch.utils.data.Dataset):
     def __init__(
             self, 
+            coords_limits: Dict[str, List[float]],
+            time_limits: List[float],
             n_samples: int = 10_000, 
             seq_len: int = 128,
-            xmin: float = 0.0, 
-            xmax: float = 1.0, 
-            tmin: float = 0.0, 
-            tmax: float = 1.0,
             noise: float = 0.0
         ) -> None:
 
@@ -17,22 +17,29 @@ class SpatialXTemporalDomain2D(torch.utils.data.Dataset):
 
         self.nrof_bins = self.data_size // seq_len
 
-        _X: torch.Tensor = torch.empty(size=(n_samples, 1))
-        _X.uniform_(xmin, xmax)
+        coords = dict()
 
-        _X = torch.sort(_X.ravel()).values
-        
-        self.X = torch.stack(
-            [
-                _X[bin * seq_len:bin * seq_len + seq_len][torch.randperm(seq_len)] for bin in range(self.nrof_bins)
-            ]
-        )[torch.randperm(self.nrof_bins)]
+        for coord_key, coord_limits in coords_limits.items():
+            _X: torch.Tensor = torch.empty(size=(n_samples, 1))
+            _X.uniform_(coord_limits[0], coord_limits[1])
 
-        self.X += noise * torch.randn(size=self.X.size())
+            _X = torch.sort(_X.ravel()).values
+            
+            X = torch.stack(
+                [
+                    _X[bin * seq_len:bin * seq_len + seq_len][torch.randperm(seq_len)] for bin in range(self.nrof_bins)
+                ]
+            )[torch.randperm(self.nrof_bins)]
+
+            X += noise * torch.randn(size=X.size())
+
+            coords[coord_key] = X
+
+        self.coords = coords
 
 
         _T: torch.Tensor = torch.empty(size=(n_samples, 1))
-        _T.uniform_(tmin, tmax)
+        _T.uniform_(time_limits[0], time_limits[1])
 
         _T = torch.sort(_T.ravel()).values
         
@@ -48,7 +55,7 @@ class SpatialXTemporalDomain2D(torch.utils.data.Dataset):
     def __getitem__(self, idx: int):
         return {
             "coords": {
-                "x": self.X[idx]
+                coord_key: coord[idx] for coord_key, coord in self.coords.items()
             },
             "time": self.T[idx]
         }
@@ -57,67 +64,41 @@ class SpatialXTemporalDomain2D(torch.utils.data.Dataset):
         return self.nrof_bins
 
 
-class SpatialXTemporalDomain(torch.utils.data.Dataset):
+class SpatialTemporalDomain(torch.utils.data.Dataset):
     def __init__(
             self, 
+            coords_limits: Dict[str, List[float]],
+            time_limits: Dict[str, float],
             n_samples: int = 10_000, 
-            xmin: float = 0.0, 
-            xmax: float = 1.0, 
-            tmin: float = 0.0, 
-            tmax: float = 1.0,
             noise: float = 0.0
         ) -> None:
 
         self.data_size = n_samples
 
-        self.X: torch.Tensor = torch.empty(size=(n_samples, 1))
-        self.X.uniform_(xmin, xmax)
-        self.X += noise * torch.randn(size=(self.X.size()))
+        coords = dict()
+
+        for coord_key, coord_limits in coords_limits.items():
+            X: torch.Tensor = torch.empty(size=(n_samples, 1))
+            X.uniform_(coord_limits[0], coord_limits[1])
+
+            X += noise * torch.randn(size=(X.size()))
+
+            coords[coord_key] = X
+
+        self.coords = coords
 
         self.T: torch.Tensor = torch.empty(size=(n_samples, 1))
-        self.T.uniform_(tmin, tmax)
+        self.T.uniform_(time_limits[0], time_limits[1])
+
         self.T += noise * torch.randn(size=(self.T.size()))
+        
 
     def __getitem__(self, idx: int):
         return {
             "coords": {
-                "x": self.X[idx]
+                coord_key: coord[idx] for coord_key, coord in self.coords.items()
             },
             "time": self.T[idx]
-        }
-
-    def __len__(self):
-        return self.data_size
-
-
-class SpatialXYTemporalDomain(torch.utils.data.Dataset):
-    def __init__(
-            self, 
-            n_samples: int = 10_000, 
-            xmin: float = 0.0, 
-            xmax: float = 1.0, 
-            ymin: float = 0.0, 
-            ymax: float = 1.0,
-            noise: float = 0.0
-        ) -> None:
-
-        self.data_size = n_samples
-
-        self.X: torch.Tensor = torch.empty(size=(n_samples, 1))
-        self.X.uniform_(xmin, xmax)
-        self.X += noise * torch.randn(size=(self.X.size()))
-
-        self.Y: torch.Tensor = torch.empty(size=(n_samples, 1))
-        self.Y.uniform_(ymin, ymax)
-        self.Y += noise * torch.randn(size=(self.Y.size()))
-
-    def __getitem__(self, idx: int):
-        return {
-            "coords": {
-                "x": self.X[idx],
-                "y": self.Y[idx]
-            },
-            "time": None
         }
 
     def __len__(self):
