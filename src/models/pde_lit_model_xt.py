@@ -118,10 +118,6 @@ class PDELitModule(L.LightningModule):
         
         self.reset_valid_scoring()
 
-
-        self.test_loss = MeanMetric()
-        self.test_branched_loss = nn.ModuleDict({key: MeanMetric() for key in self.condition_names})
-
         # for tracking best so far validation gini
         self.val_best_loss = MinMetric()
 
@@ -314,7 +310,7 @@ class PDELitModule(L.LightningModule):
             "train/loss", 
             self.train_loss, 
             batch_size=self.hparams.train_batch_size,
-            on_step=True, on_epoch=True, prog_bar=False, sync_dist=False
+            on_step=True, on_epoch=True, prog_bar=True, sync_dist=False
         )
 
         for branch, loss_item in branched_loss.items():
@@ -324,7 +320,7 @@ class PDELitModule(L.LightningModule):
                 f"train/{branch}", 
                 self.train_branched_loss[branch], 
                 batch_size=self.hparams.train_batch_size,
-                on_step=True, on_epoch=True, prog_bar=True, sync_dist=False
+                on_step=True, on_epoch=True, prog_bar=False, sync_dist=False
             )
 
         return {"loss": loss}
@@ -372,7 +368,7 @@ class PDELitModule(L.LightningModule):
         self.val_best_loss(self.monitor_loss.compute())
 
         self.log(
-            f"{self.conditional_loss}_best", 
+            "val/loss_best", 
             self.val_best_loss.compute(), 
             sync_dist=True, prog_bar=True
         )

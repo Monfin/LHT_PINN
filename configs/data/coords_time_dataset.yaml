@@ -5,15 +5,18 @@ _recursive_: False
 
 _target_: src.data.lightning_data_module.LitDataModule
 
-dataset: 
-  _target_: src.data.components.dataset.SpatialXTemporalDomain
+dataset:
+  _target_: src.data.components.dataset.SpatialTemporalDomain
 
-  n_samples: 10_000
+  n_samples: 100_000
 
   coords_limits:
-      x: [0, 5]
+    x: [-10, 10]
+    y: [-0.1, 0.1]
 
-  time_limits: [0, 10]
+  time_limits: [0, 3]
+
+  noise: 1.0e-9
 
 collator:
   _target_: src.data.components.collate.BaseCollator

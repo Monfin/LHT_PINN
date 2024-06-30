@@ -35,4 +35,4 @@ ckpt_path: null
 seed: 12345
 
 # monitored metric for early stopping
-conditional_loss: "train/loss"
+conditional_loss: "val/loss"

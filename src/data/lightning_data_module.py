@@ -35,13 +35,12 @@ class LitDataModule(LightningDataModule):
         self.dataset = hydra.utils.instantiate(dataset)
 
         self.data_train: Optional[torch.utils.data.Dataset] = None
-        # self.data_val: Optional[torch.utils.data.Dataset] = None
-        # self.data_test: Optional[torch.utils.data.Dataset] = None
+        self.data_val: Optional[torch.utils.data.Dataset] = None
 
 
     @property
     def num_classes(self):
-        return 1
+        return 0
 
 
     def prepare_data(self) -> None:
@@ -70,12 +69,10 @@ class LitDataModule(LightningDataModule):
 
         log.info("Setup data...")
 
-        self.train_data = self.dataset
-
-        # self.train_data, self.val_data, self.test_data = torch.utils.data.random_split(
-        #     self.dataset, 
-        #     [0.8, 0.1, 0.1]
-        # )
+        self.train_data, self.val_data, _ = torch.utils.data.random_split(
+            self.dataset, 
+            [0.8, 0.2, 0.0]
+        )
 
 
     def train_dataloader(self) -> torch.utils.data.DataLoader[Any]:
@@ -98,39 +95,20 @@ class LitDataModule(LightningDataModule):
         ) 
 
 
-    # def val_dataloader(self) -> torch.utils.data.DataLoader[Any]:
-    #     """
-    #     Create and return the validation dataloader.
+    def val_dataloader(self) -> torch.utils.data.DataLoader[Any]:
+        """
+        Create and return the validation dataloader.
 
-    #     :return: The validation dataloader.
-    #     """
-    #     collator = hydra.utils.instantiate(self.hparams.collator)
+        :return: The validation dataloader.
+        """
+        collator = hydra.utils.instantiate(self.hparams.collator)
 
-    #     return torch.utils.data.DataLoader(
-    #         dataset=self.val_data,
-    #         batch_size=self.hparams.val_batch_size,
-    #         num_workers=self.hparams.num_workers,
-    #         pin_memory=self.hparams.pin_memory,
-    #         collate_fn=collator,
-    #         shuffle=False,
-    #         persistent_workers=self.hparams.persistent_workers
-    #     ) 
-
-
-    # def test_dataloader(self) -> torch.utils.data.DataLoader[Any]:
-    #     """
-    #     Create and return the test dataloader.
-
-    #     :return: The test dataloader.
-    #     """
-    #     collator = hydra.utils.instantiate(self.hparams.collator)
-
-    #     return torch.utils.data.DataLoader(
-    #         dataset=self.test_data,
-    #         batch_size=self.hparams.val_batch_size,
-    #         num_workers=self.hparams.num_workers,
-    #         pin_memory=self.hparams.pin_memory,
-    #         collate_fn=collator,
-    #         shuffle=False,
-    #         persistent_workers=self.hparams.persistent_workers
-    #     )
+        return torch.utils.data.DataLoader(
+            dataset=self.val_data,
+            batch_size=self.hparams.val_batch_size,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            collate_fn=collator,
+            shuffle=False,
+            persistent_workers=self.hparams.persistent_workers
+        ) 

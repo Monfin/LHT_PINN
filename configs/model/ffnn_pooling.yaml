@@ -54,24 +54,23 @@ net:
 
   ### Main layers (merged components)
   layers:
+
     ### Main Encoder layer
     - _target_: src.models.components.encoders.main_sequence_encoder.MainEncoderLayer
 
       embedding_sequence_dim: ${model.net.embedding_dim}
-      embedding_features_dim: 0
 
       dropout_inputs: 0.1
 
       num_coords: 1
 
-      with_time: ${data.collator.with_time}
 
     ### Down Linear Block
     - _target_: src.models.components.linear_blocks.linear_down_up_block.LinearDownUpBlock
 
       down: True
 
-      in_features: ${eval:${model.net.embedding_dim} * 2}
+      in_features: ${model.net.embedding_dim}
       out_features: 1
       activation_type: tanh
 

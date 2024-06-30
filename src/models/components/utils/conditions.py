@@ -35,7 +35,7 @@ class InitialConditions(nn.Module):
         super().__init__()
 
     def forward(self, coords: Coords) -> torch.Tensor:
-        return torch.exp(-torch.square(coords.x) / 2) * torch.exp(-torch.square(coords.y) / 2)
+        return torch.exp(-(torch.square(coords.x) + torch.square(coords.y)) / 2)
 
 
 class BoundaryXYZConditions(nn.Module):

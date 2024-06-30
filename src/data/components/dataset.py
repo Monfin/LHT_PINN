@@ -20,10 +20,10 @@ class SpatialTemporalDomain2D(torch.utils.data.Dataset):
         coords = dict()
 
         for coord_key, coord_limits in coords_limits.items():
-            _X: torch.Tensor = torch.empty(size=(n_samples, 1))
+            _X: torch.Tensor = torch.empty(size=(n_samples, ))
             _X.uniform_(coord_limits[0], coord_limits[1])
 
-            _X = torch.sort(_X.ravel()).values
+            _X = torch.sort(_X).values
             
             X = torch.stack(
                 [
@@ -38,10 +38,10 @@ class SpatialTemporalDomain2D(torch.utils.data.Dataset):
         self.coords = coords
 
 
-        _T: torch.Tensor = torch.empty(size=(n_samples, 1))
+        _T: torch.Tensor = torch.empty(size=(n_samples, ))
         _T.uniform_(time_limits[0], time_limits[1])
 
-        _T = torch.sort(_T.ravel()).values
+        _T = torch.sort(_T).values
         
         self.T = torch.stack(
             [
