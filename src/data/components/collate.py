@@ -74,3 +74,37 @@ class BaseCollator:
             coords=Coords(**coords), 
             time=time
         )
+    
+
+class BaseCollator2D:
+    def __init__(self, with_coords: bool = True, with_time: bool = True, seq_len: int = 128):
+        self.with_coords = with_coords
+        self.with_time = with_time
+        self.seq_len = seq_len
+
+    def __call__(self, batch: List[Dict]) -> ModelBatch:
+        batch_size = len(batch)
+
+        if self.with_coords:
+            coords_keys = ["x", "y", "z"]
+
+            coords = dict().fromkeys(coords_keys)
+
+            for key in batch[0]["coords"].keys():
+                coords[key] = torch.stack([item["coords"][key] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
+
+                coords[key].requires_grad_(True)
+        else:
+            coords = None
+
+        if self.with_time:
+            time = torch.stack([item["time"] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
+
+            time.requires_grad_(True)
+        else:
+            time = None
+
+        return ModelBatch(
+            coords=Coords(**coords), 
+            time=time
+        )

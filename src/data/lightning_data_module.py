@@ -92,8 +92,7 @@ class LitDataModule(LightningDataModule):
             collate_fn=collator,
             shuffle=True,
             persistent_workers=self.hparams.persistent_workers
-        ) 
-
+        )
 
     def val_dataloader(self) -> torch.utils.data.DataLoader[Any]:
         """

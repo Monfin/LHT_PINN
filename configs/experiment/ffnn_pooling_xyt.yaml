@@ -26,11 +26,11 @@ data:
   dataset:
     _target_: src.data.components.dataset.SpatialTemporalDomain
 
-    n_samples: 100_000
+    n_samples: 300_000
 
     coords_limits:
-      x: [-2, 2]
-      y: [-2, 2]
+      x: [-20, 20]
+      y: [-10, 10]
 
     time_limits: [0, 10]
 

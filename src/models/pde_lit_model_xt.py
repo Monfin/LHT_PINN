@@ -180,7 +180,7 @@ class PDELitModule(L.LightningModule):
                     # compute derivatives (gradient components)
                     grads_1[key], grads_2[key] = self.derivative(solution, coord, 2)
 
-            # stack coordinates gradients + aggregate
+            # stack coords gradients + aggregate
             grads_1 = torch.concatenate(list(grads_1.values()), dim=-1).sum(dim=-1, keepdim=True)
             grads_2 = torch.concatenate(list(grads_2.values()), dim=-1).sum(dim=-1, keepdim=True)
 
@@ -297,7 +297,7 @@ class PDELitModule(L.LightningModule):
         return loss, branched_loss, u, pde
 
 
-    def training_step(self, batch: ModelBatch, batch_idx: int) -> Dict:
+    def training_step(self, batch: ModelBatch, batch_idx: int, dataloader_idx: int = 0) -> Dict:
         """
         :param enable_graph: If True, will not auto detach the graph. 
         """
@@ -326,7 +326,7 @@ class PDELitModule(L.LightningModule):
         return {"loss": loss}
 
 
-    def validation_step(self, batch: ModelBatch, batch_idx: int) -> Dict:
+    def validation_step(self, batch: ModelBatch, batch_idx: int, dataloader_idx: int = 0) -> None:
         loss, branched_loss, _, _ = self.model_step(batch)
 
         self.val_scoring_losses["loss"].append(loss)

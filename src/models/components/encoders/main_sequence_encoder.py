@@ -21,6 +21,7 @@ class MainEncoderLayer(nn.Module):
             [
                 nn.Sequential(
                     nn.Linear(1, embedding_dim),
+                    nn.BatchNorm1d(embedding_dim),
                     nn.Tanh()
                 ) for _ in range(num_coords)
             ]
@@ -28,6 +29,7 @@ class MainEncoderLayer(nn.Module):
 
         self.linear_block_t = nn.Sequential(
             nn.Linear(1, embedding_dim),
+            nn.BatchNorm1d(embedding_dim),
             nn.Tanh()
         )
 
