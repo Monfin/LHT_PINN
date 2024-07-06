@@ -44,6 +44,5 @@ class BoundaryXYZConditions(nn.Module):
 
         self.temperature = temperature
 
-
     def forward(self, inputs: ModelInput) -> torch.Tensor:
         return torch.ones(size=inputs.time.size()) * self.temperature

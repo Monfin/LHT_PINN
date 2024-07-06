@@ -69,9 +69,9 @@ class LitDataModule(LightningDataModule):
 
         log.info("Setup data...")
 
-        self.train_data, self.val_data, _ = torch.utils.data.random_split(
+        self.train_data, self.val_data = torch.utils.data.random_split(
             self.dataset, 
-            [0.8, 0.2, 0.0]
+            [0.8, 0.2]
         )
 
 
