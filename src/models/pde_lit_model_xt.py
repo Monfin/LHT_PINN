@@ -148,24 +148,35 @@ class PDELitModule(L.LightningModule):
         return self.net(inputs)
     
 
-    def pde(self, u_t, u1, u2, u_x, u_y, u_xx, u_yy) -> torch.Tensor:
+    def pde(self, u_t, u, u_x, u_xx) -> torch.Tensor:
         # u_x == u1_x or u2_x
 
         time_part = self.hparams.alpha * u_t
 
-        grad_part = self.hparams.beta * (u1 * u_x + u2 * u_y)
+        grad_part = self.hparams.beta * (
+            torch.concatenate(
+                [
+                    ui * ui_x for ui, ui_x in zip(u, u_x)
+                ], dim=-1
+            ).sum(dim=-1, keepdim=True)
+        )
 
-        viscous_part = self.hparams.nu * (u_xx + u_yy)
+        viscous_part = self.hparams.nu * (
+            torch.concatenate(u_xx, dim=-1)
+        ).sum(dim=-1, keepdim=True)
 
         # Burger's equation
         return time_part + grad_part - viscous_part
     
 
-    def other_pde(self, u1_x, u2_y) -> torch.Tensor:
+    def other_pde(self, u) -> torch.Tensor:
         # Continuity equation
-        return u1_x + u2_y
+        return (
+            torch.concatenate(u, dim=-1)
+        ).sum(dim=-1, keepdim=True)
 
 
+    # @torch.jit.script
     def derivative(self, u: torch.Tensor, x: torch.Tensor, n: int = 1):
         derivatives = list()
         
@@ -211,21 +222,22 @@ class PDELitModule(L.LightningModule):
                         u_grads[0][key], u_grads[1][key] = self.derivative(ui, coord, 2)
 
                 pde = self.pde(
-                    u_t, # ui_t
-                    *u, # ui
-                    *list(u_grads[0].values()), # ui_x, ui_y
-                    *list(u_grads[1].values()) # ui_xx, ui_yy
+                    u_t=u_t, # ui_t
+                    u=u, # ui
+                    u_x=list(u_grads[0].values()), # ui_x, ui_y
+                    u_xx=list(u_grads[1].values()) # ui_xx, ui_yy
                 ) # TODO universal
 
                 loss += self.criterion[idx](pde, self.pdec(inputs))
 
-                other_grads.append(u_grads[0][list(u_grads[0].keys())[idx]]) # diag dix ~ ui
+                if self.other_pdec_criterion is not None:
+                    other_grads.append(u_grads[0][list(u_grads[0].keys())[idx]]) # diag dix ~ ui
 
 
-            if self.other_pdec is not None:
+            if self.other_pdec_criterion is not None:
                 for criterion, condition in zip(self.other_pdec_criterion, self.other_pdec):
 
-                    other_pde = self.other_pde(*other_grads)
+                    other_pde = self.other_pde(u=other_grads)
 
                     loss += criterion(other_pde, condition(inputs))
 
@@ -254,7 +266,9 @@ class PDELitModule(L.LightningModule):
             # for idx, ic_ui in enumerate(ic_u):
             #     ic_multi_loss += criterion[idx](ic_ui, condition(inputs.coords))
 
-            ic_u_vector = torch.sqrt(torch.sum(torch.square(ic_multi_u[-1].logits), dim=-1, keepdim=True))
+            # ic_u_vector = torch.sqrt(torch.sum(torch.square(ic_multi_u[-1].logits), dim=-1, keepdim=True))
+
+            ic_u_vector = ic_multi_u[-1].logits
 
             ic_multi_loss += criterion(ic_u_vector, condition(inputs.coords))
 
@@ -287,7 +301,9 @@ class PDELitModule(L.LightningModule):
 
                     bc_u.append(self.forward(bc_inputs))
 
-                    bc_u_vector = torch.sqrt(torch.sum(torch.square(bc_u[-1].logits), dim=-1, keepdim=True))
+                    # bc_u_vector = torch.sqrt(torch.sum(torch.square(bc_u[-1].logits), dim=-1, keepdim=True))
+
+                    bc_u_vector = bc_u[-1].logits
 
                     bc_loss += criterion(bc_u_vector, condition(bc_inputs))
 
@@ -364,7 +380,7 @@ class PDELitModule(L.LightningModule):
                 f"train/{branch}", 
                 self.train_branched_loss[branch], 
                 batch_size=self.hparams.train_batch_size,
-                on_step=True, on_epoch=True, prog_bar=False, sync_dist=False
+                on_step=True, on_epoch=True, prog_bar=True, sync_dist=False
             )
 
         return {"loss": loss}

@@ -16,8 +16,9 @@ tags: ["xt", "simple_pinn"]
 seed: 12345
 
 logger:
-  run_name: PINN_basic
-  tags: ${tags}
+  mlflow:
+    experiment_name: ff_pinn_emb16
+    run_name: PINN_basic
 
 # set data params
 data:
@@ -27,12 +28,10 @@ data:
 
     n_samples: 100_000
 
-    coords_limits:
-      x: [0, 5]
+    coords_limits: # num_coords == num_elements
+      x: [-1, 1]
 
-    time_limits: [0, 10]
-
-    noise: 1.0e-6
+    time_limits: [0, 3]
 
   collator:
     _target_: src.data.components.collate.BaseCollator
@@ -48,12 +47,12 @@ trainer:
   accelerator: cpu
 
   min_epochs: 1 # prevents early stopping
-  max_epochs: 5
+  max_epochs: 10
 
   devices: 1
 
   # mixed precision for extra speed-up
-  precision: 32
+  precision: bf16-mixed
 
   log_every_n_steps: 30
 
@@ -71,7 +70,7 @@ model:
   optimizer: 
     _target_: torch.optim.Adam
     _partial_: True
-    lr: 1.0e-4
+    lr: 0.5e-3
     weight_decay: 1.0e-6
 
   scheduler:
@@ -83,9 +82,9 @@ model:
 
   alpha: 1.0
   beta: 1.0
-  nu: 0.0
+  nu: 0.0031831 # 0.01 / pi
   
-  num_coords: 1
+  num_coords: ${len:${data.dataset.coords_limits}}
   bc_limits: ${data.dataset.coords_limits}
   
   # pde + other conditions to pde
@@ -99,42 +98,47 @@ model:
     pdec:
       _target_: src.models.components.utils.conditions.PDEBurgerCondition
 
-    other_pdec:
-      - _target_: src.models.components.utils.conditions.PDEOtherCondition
+    other_pdec: []
+      # - _target_: src.models.components.utils.conditions.PDEOtherCondition
   
     ic:
       - _target_: src.models.components.utils.conditions.InitialConditions
+        coords_limits: ${data.dataset.coords_limits}
     
     bc:
       - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+        temperature: 0.0
+
       - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+        temperature: 0.0
 
   net:
     _target_: src.models.components.pde_nn.PDESimpleNN
-    embedding_dim: 8
+    embedding_dim: 16
 
     ### Main layers (merged components)
     layers:
+
       ### Main Encoder layer
       - _target_: src.models.components.encoders.main_sequence_encoder.MainEncoderLayer
 
-        embedding_sequence_dim: ${model.net.embedding_dim}
-        embedding_features_dim: 0
+        embedding_dim: ${model.net.embedding_dim}
 
-        dropout_inputs: 0.1
+        dropout_inputs: 0.0
 
-        num_coords: 1
+        num_coords: ${model.num_coords}
 
-        with_time: ${data.collator.with_time}
 
       ### Down Linear Block
       - _target_: src.models.components.linear_blocks.linear_down_up_block.LinearDownUpBlock
 
+        reduce: False
         down: True
 
-        in_features: ${eval:${model.net.embedding_dim} * 2}
+        # num_coords * emb_dim + emb_dim by time
+        in_features: ${model.net.embedding_dim}
         out_features: 1
         activation_type: tanh
 
-        num_layers: 2
+        num_layers: 4
         use_batch_norm: False

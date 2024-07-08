@@ -6,21 +6,18 @@ from src.data.components.collate import SingleForwardState, ModelOutput
 
 ACTIVATION_TYPE_MAPPING = {
     "tanh": nn.Tanh,
+    "silu": nn.SiLU,
     "gelu": nn.GELU,
     "relu": nn.ReLU,
     "none": nn.Identity
 }
-
-def init_linear_block_weights(layer):
-    if isinstance(layer, nn.Linear):
-        nn.init.xavier_uniform_(layer.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.zeros_(layer.bias)
 
 class LinearDownUpBlock(nn.Module):
     def __init__(
             self, 
             in_features: int, 
             out_features: int = 1, 
+            reduce: bool = False,
             down: bool = True,
             num_layers: int = 3, 
             dropout_rate: float = 0.0, 
@@ -41,11 +38,6 @@ class LinearDownUpBlock(nn.Module):
         else: 
             NotImplementedError(f"activation_type must be in <{list(ACTIVATION_TYPE_MAPPING.keys())}>")
 
-        if use_batch_norm:
-            self.layer_norm = nn.BatchNorm1d
-        else:
-            self.layer_norm = nn.LayerNorm
-
         features_dim = lambda n_dim, k: n_dim // (2 ** k) if down else n_dim * (2 ** k)
 
         self.linear_block = nn.Sequential(
@@ -53,11 +45,11 @@ class LinearDownUpBlock(nn.Module):
                 nn.Sequential(
                     *[
                         nn.Linear(
-                            features_dim(in_features, i), 
-                            features_dim(in_features, i + 1), 
+                            features_dim(in_features, i) if reduce else in_features, 
+                            features_dim(in_features, i + 1) if reduce else in_features, 
                             bias
                         ),
-                        self.layer_norm(features_dim(in_features, i + 1)),
+                        nn.BatchNorm1d(features_dim(in_features, i + 1) if reduce else in_features) if use_batch_norm else nn.Identity(),
                         self.act()
                     ]
                 ) for i in range(num_layers)
@@ -65,7 +57,7 @@ class LinearDownUpBlock(nn.Module):
         )
         
 
-        self.out_block = nn.Linear(features_dim(in_features, num_layers), out_features)
+        self.out_block = nn.Linear(features_dim(in_features, num_layers) if reduce else in_features, out_features)
 
         self.cls_layers = nn.Sequential(
             self.dropout,
@@ -73,9 +65,6 @@ class LinearDownUpBlock(nn.Module):
             self.out_block,
             self.act()
         )
-
-        # weights init
-        self.cls_layers.apply(init_linear_block_weights)
 
 
     def forward(self, x: SingleForwardState) -> ModelOutput:

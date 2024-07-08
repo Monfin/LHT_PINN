@@ -3,6 +3,8 @@ from torch import nn
 
 from src.data.components.collate import ModelInput, Coords
 
+from typing import Dict, List
+
 # Register initial conditions, boundary conditions and pde conditions
 
 
@@ -31,11 +33,15 @@ class PDEOtherCondition(nn.Module):
 
 
 class InitialConditions(nn.Module):
-    def __init__(self):
+    def __init__(self, coords_limits: Dict[str, List[float]]):
         super().__init__()
 
+        self.L = sum([abs(limit) for limit in coords_limits["x"]])
+
+
     def forward(self, coords: Coords) -> torch.Tensor:
-        return torch.exp(-(torch.square(coords.x) + torch.square(coords.y)) / 2)
+        return -torch.sin(torch.pi * coords.x)
+        # return torch.exp(-(torch.square(coords.x) + torch.square(coords.y)) / 2)
 
 
 class BoundaryXYZConditions(nn.Module):

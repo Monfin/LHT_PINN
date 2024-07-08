@@ -69,8 +69,7 @@ class SpatialTemporalDomain(torch.utils.data.Dataset):
             self, 
             coords_limits: Dict[str, List[float]],
             time_limits: Dict[str, float],
-            n_samples: int = 10_000, 
-            noise: float = 0.0
+            n_samples: int = 10_000
         ) -> None:
 
         self.data_size = n_samples
@@ -81,8 +80,6 @@ class SpatialTemporalDomain(torch.utils.data.Dataset):
             X: torch.Tensor = torch.empty(size=(n_samples, 1))
             X.uniform_(coord_limits[0], coord_limits[1])
 
-            X += noise * torch.randn(size=(X.size()))
-
             coords[coord_key] = X
 
         self.coords = coords
@@ -90,8 +87,6 @@ class SpatialTemporalDomain(torch.utils.data.Dataset):
         self.T: torch.Tensor = torch.empty(size=(n_samples, 1))
         self.T.uniform_(time_limits[0], time_limits[1])
 
-        self.T += noise * torch.randn(size=(self.T.size()))
-        
 
     def __getitem__(self, idx: int):
         return {
