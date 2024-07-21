@@ -22,6 +22,7 @@ class PDEBurgerCondition(nn.Module):
 
     def forward(self, inputs: ModelInput) -> torch.Tensor:
         return torch.zeros(size=inputs.time.size())
+        # return torch.cos(torch.pi * inputs.time) * torch.exp(-1e-3 * inputs.time) 
 
 
 class PDEOtherCondition(nn.Module):
@@ -40,7 +41,7 @@ class InitialConditions(nn.Module):
 
 
     def forward(self, coords: Coords) -> torch.Tensor:
-        return -torch.sin(torch.pi * coords.x)
+        return -torch.sin(torch.pi * coords.x / self.L)
         # return torch.exp(-(torch.square(coords.x) + torch.square(coords.y)) / 2)
 
 

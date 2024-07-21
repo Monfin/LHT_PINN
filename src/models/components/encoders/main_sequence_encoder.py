@@ -36,7 +36,9 @@ class MainEncoderLayer(nn.Module):
 
     def forward(self, inputs: ModelInput) -> SingleForwardState:
 
+        # coords = [item for item in inputs if item is not None] # TODO        
         coords = [coord for coord in inputs.coords if coord is not None]
+
 
         coords_emb = torch.concatenate(
             [

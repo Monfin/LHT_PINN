@@ -321,11 +321,7 @@ class PDELitModule(L.LightningModule):
         self.monitor_loss.reset()
     
         
-    def model_step(self, batch: ModelBatch) -> Tuple[torch.Tensor]:
-        inputs = ModelInput(
-            coords=batch.coords,
-            time=batch.time
-        )
+    def model_step(self, inputs: ModelInput) -> Tuple[torch.Tensor]:
 
         u, pde, loss = self.pde_forward(inputs)
 

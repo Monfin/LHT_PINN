@@ -4,6 +4,9 @@ import torch
 
 from typing import List, Dict, Optional
 
+# from collections import namedtuple
+
+
 # abstract class for model batches (data type)
 # returns class with __init__, __repr__ and other
 @dataclass
@@ -29,15 +32,29 @@ class ModelOutput:
     logits: Optional[torch.Tensor]
 
 
+# coords = namedtuple(typename="Coords", field_names=["x", "y", "z"])
+
 @dataclass
 class Coords:
-    x: Optional[torch.Tensor]
-    y: Optional[torch.Tensor]
-    z: Optional[torch.Tensor]
+    x: Optional[torch.Tensor] = None
+    y: Optional[torch.Tensor] = None
+    z: Optional[torch.Tensor] = None
 
     def __iter__(self):
         return iter([self.x, self.y, self.z])
 
+
+# model_input = namedtuple(typename="inputs", field_names=["x", "y", "z", "time"])
+
+# @dataclass
+# class ModelInput(model_input):
+#     x: Optional[torch.Tensor] = None
+#     y: Optional[torch.Tensor] = None
+#     z: Optional[torch.Tensor] = None
+#     time: Optional[torch.Tensor] = None
+
+#     def __iter__(self):
+#         return iter([self.x, self.y, self.z])
 
 @dataclass
 class ModelInput:
@@ -50,14 +67,17 @@ class BaseCollator:
         self.with_coords = with_coords
         self.with_time = with_time
 
-    def __call__(self, batch: List[Dict]) -> ModelBatch:
+    def __call__(self, batch: List[Dict]) -> ModelBatch: # ModelInput
         if self.with_coords:
             coords_keys = ["x", "y", "z"]
 
             coords = dict().fromkeys(coords_keys)
 
+            # for key in coords_keys:
+            #     coords[key] = torch.stack([item[key] for item in batch], dim=0)
             for key in batch[0]["coords"].keys():
                 coords[key] = torch.stack([item["coords"][key] for item in batch], dim=0)
+
 
                 coords[key].requires_grad_(True)
         else:
@@ -70,10 +90,16 @@ class BaseCollator:
         else:
             time = None
 
+
         return ModelBatch(
             coords=Coords(**coords), 
             time=time
         )
+
+        # return ModelInput(
+        #     **coords, 
+        #     time=time
+        # )
     
 
 class BaseCollator2D:
@@ -82,7 +108,7 @@ class BaseCollator2D:
         self.with_time = with_time
         self.seq_len = seq_len
 
-    def __call__(self, batch: List[Dict]) -> ModelBatch:
+    def __call__(self, batch: List[Dict]) -> ModelInput:
         batch_size = len(batch)
 
         if self.with_coords:
@@ -90,8 +116,8 @@ class BaseCollator2D:
 
             coords = dict().fromkeys(coords_keys)
 
-            for key in batch[0]["coords"].keys():
-                coords[key] = torch.stack([item["coords"][key] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
+            for key in batch[0].keys():
+                coords[key] = torch.stack([item[key] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
 
                 coords[key].requires_grad_(True)
         else:
@@ -104,7 +130,7 @@ class BaseCollator2D:
         else:
             time = None
 
-        return ModelBatch(
-            coords=Coords(**coords), 
+        return ModelInput(
+            **coords, 
             time=time
         )
