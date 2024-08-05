@@ -31,8 +31,6 @@ class SpatialTemporalDomain2D(torch.utils.data.Dataset):
                 ]
             )[torch.randperm(self.nrof_bins)]
 
-            X += noise * torch.randn(size=X.size())
-
             coords[coord_key] = X
 
         self.coords = coords
@@ -48,8 +46,6 @@ class SpatialTemporalDomain2D(torch.utils.data.Dataset):
                 _T[bin * seq_len:bin * seq_len + seq_len][torch.randperm(seq_len)] for bin in range(self.nrof_bins)
             ]
         )[torch.randperm(self.nrof_bins)]
-
-        self.T += noise * torch.randn(size=self.T.size())
 
 
     def __getitem__(self, idx: int):

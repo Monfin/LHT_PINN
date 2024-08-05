@@ -1,15 +1,17 @@
 import torch
 from torch import nn
 
-from typing import Dict, Callable
+from typing import Dict
 
 import torch
 from torch import nn
 
+from src.models.components.pde_nn import PDESimpleNN, XPINN
+
 from torchmetrics import MinMetric, MeanMetric
 from torchmetrics.regression import RelativeSquaredError
 
-from src.data.components.collate import ModelInput, ModelBatch, ModelOutput, Coords
+from src.data.components.collate import ModelBatch, ModelOutput, Coords
 
 from typing import Dict, Tuple, List, Union
 
@@ -27,7 +29,7 @@ METRICS_MAPPING = {
 class PDELitModule(L.LightningModule):
     def __init__(
             self, 
-            net: nn.Module,
+            net: PDESimpleNN,
 
             train_batch_size: int,
             val_batch_size: int,
@@ -144,8 +146,8 @@ class PDELitModule(L.LightningModule):
         }
 
 
-    def forward(self, inputs: ModelInput) -> ModelOutput:
-        return self.net(inputs)
+    def forward(self, inputs: ModelBatch) -> ModelOutput:
+        return self.net(*inputs) if self.hparams.compile else self.net(inputs)
     
 
     def pde(self, u_t, u, u_x, u_xx) -> torch.Tensor:
@@ -197,19 +199,22 @@ class PDELitModule(L.LightningModule):
         return derivatives
 
 
-    def pde_forward(self, inputs: ModelInput): # PDE Loss
-        solution = self.forward(inputs) # (batch_size x num_coords) ~ [u1(x1, x2; t), u2(x1, x2; t)]
+    def pde_forward(self, inputs: ModelBatch): # PDE Loss
+        outputs = self.forward(inputs) # (batch_size x num_coords) ~ [u1(x1, x2; t), u2(x1, x2; t)]
+        outputs = ModelOutput(model_batch=inputs, solution=outputs)
 
-        if solution.logits.requires_grad:
+        if outputs.solution.requires_grad:
             
             u = [
-                tensor.unsqueeze(dim=-1) for tensor in solution.logits.unbind(dim=-1)
+                tensor.unsqueeze(dim=-1) for tensor in outputs.solution.unbind(dim=-1)
             ] # list(batch_size x num_coords)
 
             loss = 0.0
             other_grads = list()
 
-            _coords = inputs.coords.__dict__.items()
+            _coords = {
+                key: coord for key, coord in inputs.coords._asdict().items() if coord.__len__() > 0
+            }.items()
 
             for idx, ui in enumerate(u):
                 u_t = self.derivative(ui, inputs.time, 1)[0]
@@ -241,23 +246,24 @@ class PDELitModule(L.LightningModule):
 
                     loss += criterion(other_pde, condition(inputs))
 
-            return solution, pde, loss
+            return outputs, pde, loss
         else:
-            return solution, torch.tensor(0.), torch.tensor(0.)
+            return outputs, torch.tensor(0.), torch.tensor(0.)
 
         
-    def ic_forward(self, inputs: ModelInput): # IC Loss
+    def ic_forward(self, inputs: ModelBatch): # IC Loss
         ic_multi_u = list()
         ic_multi_loss = 0.0
 
         for criterion, condition in zip(self.ic_criterion, self.ic):
 
-            ic_inputs = ModelInput(
+            ic_inputs = ModelBatch(
                 coords=inputs.coords,
                 time=torch.zeros(size=(inputs.time.size()))
             )
 
             ic_multi_u.append(self.forward(ic_inputs))
+            ic_multi_u[-1] = ModelOutput(model_batch=ic_inputs, solution=ic_multi_u[-1])
 
             # ic_u = [
             #     tensor.unsqueeze(dim=-1) for tensor in ic_multi_u[-1].logits.unbind(dim=-1)
@@ -268,15 +274,17 @@ class PDELitModule(L.LightningModule):
 
             # ic_u_vector = torch.sqrt(torch.sum(torch.square(ic_multi_u[-1].logits), dim=-1, keepdim=True))
 
-            ic_u_vector = ic_multi_u[-1].logits
+            ic_u_vector = ic_multi_u[-1].solution
 
             ic_multi_loss += criterion(ic_u_vector, condition(inputs.coords))
 
         return ic_multi_u, ic_multi_loss
     
     
-    def bc_forward(self, inputs: ModelInput): # BC Loss
-        _coords = inputs.coords.__dict__.items()
+    def bc_forward(self, inputs: ModelBatch): # BC Loss
+        _coords = {
+            key: coord for key, coord in inputs.coords._asdict().items() if coord.__len__() > 0
+        }.items()
 
         bc_multi_u = list()
         bc_multi_loss = list()
@@ -287,7 +295,7 @@ class PDELitModule(L.LightningModule):
 
             for (key, coord), criterion in zip(_coords, branch_criterion):
                 if coord is not None:
-                    bc_inputs = ModelInput(
+                    bc_inputs = ModelBatch(
                         coords=Coords(
                             **{
                                 nested_key: nested_coord \
@@ -300,10 +308,11 @@ class PDELitModule(L.LightningModule):
                     )
 
                     bc_u.append(self.forward(bc_inputs))
+                    bc_u[-1] = ModelOutput(model_batch=bc_inputs, solution=bc_u[-1])
 
                     # bc_u_vector = torch.sqrt(torch.sum(torch.square(bc_u[-1].logits), dim=-1, keepdim=True))
 
-                    bc_u_vector = bc_u[-1].logits
+                    bc_u_vector = bc_u[-1].solution
 
                     bc_loss += criterion(bc_u_vector, condition(bc_inputs))
 
@@ -321,7 +330,7 @@ class PDELitModule(L.LightningModule):
         self.monitor_loss.reset()
     
         
-    def model_step(self, inputs: ModelInput) -> Tuple[torch.Tensor]:
+    def model_step(self, inputs: ModelBatch) -> Tuple[torch.Tensor]:
 
         u, pde, loss = self.pde_forward(inputs)
 
@@ -441,6 +450,10 @@ class PDELitModule(L.LightningModule):
         :param stage: Either `"fit"`, `"validate"`, `"test"`, or `"predict"`.
         """
         if self.hparams.compile and stage == "fit":
+            self.net = torch.jit.trace(
+                self.net, 
+                ModelBatch(coords=Coords(x=torch.zeros((1, 1))), time=torch.zeros((1, 1)))
+            )
             self.net = torch.compile(self.net)
 
 

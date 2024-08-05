@@ -3,7 +3,7 @@ from torch import nn
 
 from typing import List
 
-from src.data.components.collate import ModelInput, ModelOutput
+from src.data.components.collate import ModelBatch, ModelOutput, Coords
 
 
 class PDESimpleNN(nn.Module):
@@ -15,9 +15,23 @@ class PDESimpleNN(nn.Module):
         super().__init__()
 
         self.layers = nn.Sequential(*layers)
+        
 
-    def forward(self, inputs: ModelInput) -> ModelOutput:
+    def forward(self, inputs: ModelBatch) -> torch.Tensor:
 
         state = self.layers(inputs)
 
         return state
+    
+
+# for tracing
+class XPINN(PDESimpleNN):
+    def __init__(self, **kwargs):
+        super(XPINN, self).__init__(**kwargs)
+
+
+    def forward(self, coords: Coords, time: torch.Tensor) -> torch.Tensor:
+
+        inputs = ModelBatch(coords, time)
+
+        return super().forward(inputs)

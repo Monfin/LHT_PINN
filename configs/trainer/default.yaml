@@ -4,7 +4,10 @@ default_root_dir: ${paths.output_dir}
 min_epochs: 1 # prevents early stopping
 max_epochs: 1
 
-# profiler: simple
+profiler: 
+  _target_: lightning.pytorch.profilers.SimpleProfiler
+  dirpath: ${paths.output_dir}
+  filename: profiler_logs
 # enable_progress_bar: False
 
 accelerator: cpu

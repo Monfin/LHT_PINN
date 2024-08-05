@@ -1,0 +1,154 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py +experiment=example
+
+# defaults:
+#   - override /data: credits_history_dataset.yaml
+#   - override /model: embeddings_gru_pooling.yaml
+#   - override /trainer: cpu.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["xt", "simple_pinn"]
+
+seed: 12345
+
+partial_ckpt_path: logs/train/runs/burgers_nu01pi_x2_t15_correct_v2/checkpoints/epoch_009.ckpt
+
+logger:
+  mlflow:
+    experiment_name: ff_pinn_emb16
+    run_name: PINN_basic
+
+# set data params
+data:
+
+  dataset:
+    _target_: src.data.components.dataset.SpatialTemporalDomain
+
+    n_samples: 100_000
+
+    coords_limits: # num_coords == num_elements
+      x: [-1, 1]
+
+    time_limits: [0, 3]
+
+  collator:
+    _target_: src.data.components.collate.BaseCollator
+
+  train_batch_size: 256
+  val_batch_size: 256
+
+
+# set trainer params
+trainer:
+  accelerator: cpu
+
+  min_epochs: 1 # prevents early stopping
+  max_epochs: 10
+
+  devices: 1
+
+  # mixed precision for extra speed-up
+  precision: bf16-mixed
+
+  log_every_n_steps: 30
+
+
+# set model params
+model:
+  _target_: src.models.pde_lit_model_xt.PDELitModule
+  _recursive_: True
+
+  train_batch_size: ${data.train_batch_size}
+  val_batch_size: ${data.val_batch_size}
+
+  conditional_loss: ${conditional_loss}
+
+  optimizer: 
+    _target_: torch.optim.Adam
+    _partial_: True
+    lr: 0.5e-3
+    weight_decay: 1.0e-4
+
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: True
+    mode: min
+    factor: 0.5 # new_lr = factor * old_lr
+    patience: 1
+
+  alpha: 1.0
+  beta: 1.0
+  nu: 0.031831 # 0.1 / pi
+  
+  num_coords: ${len:${data.dataset.coords_limits}}
+  bc_limits: ${data.dataset.coords_limits}
+  
+  # pde + other conditions to pde
+  condition_names:
+    - pdec
+    - ic
+    - bc_lower
+    - bc_upper
+
+  conditions:
+    pdec:
+      _target_: src.models.components.utils.conditions.PDEBurgerCondition
+
+    other_pdec: []
+      # - _target_: src.models.components.utils.conditions.PDEOtherCondition
+  
+    ic:
+      - _target_: src.models.components.utils.conditions.InitialConditions
+        coords_limits: ${data.dataset.coords_limits}
+    
+    bc:
+      - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+        temperature: 0.0
+
+      - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
+        temperature: 0.0
+
+  net:
+    _target_: src.models.components.pde_nn.PDESimpleNN
+    embedding_dim: 16
+
+    ### Main layers (merged components)
+    layers:
+
+      ### Main Encoder layer
+      - _target_: src.utils.partial_checkpoint.PartialCheckpoint
+        ckpt_path: ${partial_ckpt_path}
+        ckpt_prefix: net.layers.0
+
+        target_model:
+          _target_: src.models.components.encoders.main_sequence_encoder.MainEncoderLayer
+
+          embedding_dim: ${model.net.embedding_dim}
+
+          dropout_inputs: 0.0
+
+          num_coords: ${model.num_coords}
+
+
+      ### Down Linear Block
+      - _target_: src.utils.partial_checkpoint.PartialCheckpoint
+        ckpt_path: ${partial_ckpt_path}
+        ckpt_prefix: net.layers.1
+
+        target_model:
+          _target_: src.models.components.linear_blocks.linear_down_up_block.LinearDownUpBlock
+
+          reduce: False
+          down: True
+
+          # num_coords * emb_dim + emb_dim by time
+          in_features: ${model.net.embedding_dim}
+          out_features: 1
+          activation_type: tanh
+
+          num_layers: 4
+          use_batch_norm: False

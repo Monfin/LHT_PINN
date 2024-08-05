@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from src.data.components.collate import ModelInput, Coords
+from src.data.components.collate import ModelBatch, Coords
 
 from typing import Dict, List
 
@@ -12,7 +12,7 @@ class PDEPoissonConditions(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, inputs: ModelInput) -> torch.Tensor:
+    def forward(self, inputs: ModelBatch) -> torch.Tensor:
         return torch.zeros(size=inputs.time.size())
 
 
@@ -20,7 +20,7 @@ class PDEBurgerCondition(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, inputs: ModelInput) -> torch.Tensor:
+    def forward(self, inputs: ModelBatch) -> torch.Tensor:
         return torch.zeros(size=inputs.time.size())
         # return torch.cos(torch.pi * inputs.time) * torch.exp(-1e-3 * inputs.time) 
 
@@ -29,7 +29,7 @@ class PDEOtherCondition(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, inputs: ModelInput) -> torch.Tensor:
+    def forward(self, inputs: ModelBatch) -> torch.Tensor:
         return torch.zeros(size=inputs.time.size())
 
 
@@ -51,5 +51,5 @@ class BoundaryXYZConditions(nn.Module):
 
         self.temperature = temperature
 
-    def forward(self, inputs: ModelInput) -> torch.Tensor:
+    def forward(self, inputs: ModelBatch) -> torch.Tensor:
         return torch.ones(size=inputs.time.size()) * self.temperature

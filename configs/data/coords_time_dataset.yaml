@@ -17,8 +17,6 @@ dataset:
 
 collator:
   _target_: src.data.components.collate.BaseCollator
-  with_coords: True
-  with_time: True
 
 train_batch_size: 128
 val_batch_size: 128

@@ -2,135 +2,112 @@ from dataclasses import dataclass
 
 import torch
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 
-# from collections import namedtuple
+from collections import namedtuple
+
+from abc import ABC
 
 
-# abstract class for model batches (data type)
+# dataclass - abstract class for model batches (data type)
 # returns class with __init__, __repr__ and other
-@dataclass
-class ModelBatch:
-    coords: Optional[torch.Tensor]
-    time: Optional[torch.Tensor]
+
+_coords = namedtuple(typename="coords", field_names=["x", "y", "z"])
+class Coords(_coords):
+    x: torch.Tensor
+    y: torch.Tensor
+    z: torch.Tensor
+
+    def __new__(
+        cls, 
+        x: torch.Tensor = torch.tensor([]),
+        y: torch.Tensor = torch.tensor([]),
+        z: torch.Tensor = torch.tensor([])
+    ):
+        return super().__new__(cls, x=x, y=y, z=z)
 
 
-@dataclass
-class SingleForwardState:
-    sequences: Optional[torch.Tensor]
-
-
-@dataclass
-class TwoBranchForwardState:
-    main_seq: SingleForwardState
-    aggregates: Optional[torch.Tensor]
-
-
-@dataclass
-class ModelOutput:
-    representations: Optional[torch.Tensor]
-    logits: Optional[torch.Tensor]
-
-
-# coords = namedtuple(typename="Coords", field_names=["x", "y", "z"])
-
-@dataclass
-class Coords:
-    x: Optional[torch.Tensor] = None
-    y: Optional[torch.Tensor] = None
-    z: Optional[torch.Tensor] = None
-
-    def __iter__(self):
-        return iter([self.x, self.y, self.z])
-
-
-# model_input = namedtuple(typename="inputs", field_names=["x", "y", "z", "time"])
-
-# @dataclass
-# class ModelInput(model_input):
-#     x: Optional[torch.Tensor] = None
-#     y: Optional[torch.Tensor] = None
-#     z: Optional[torch.Tensor] = None
-#     time: Optional[torch.Tensor] = None
-
-#     def __iter__(self):
-#         return iter([self.x, self.y, self.z])
-
-@dataclass
-class ModelInput:
+_model_input = namedtuple(typename="SpatialTemporalDomain", field_names=["coords", "time"])
+class ModelBatch(_model_input):
     coords: Coords
-    time: Optional[torch.Tensor]
+    time: torch.Tensor
+
+    def __new__(
+        cls,
+        coords: Coords = Coords(),
+        time: torch.Tensor = torch.tensor([])
+    ):
+        return super().__new__(cls, coords=coords, time=time)
 
 
-class BaseCollator:
-    def __init__(self, with_coords: bool = True, with_time: bool = True):
-        self.with_coords = with_coords
-        self.with_time = with_time
+_model_output = namedtuple(typename="SpatialTemporalDomainSolution", field_names=["model_batch", "solution"])
+class ModelOutput(_model_output):
+    model_batch: ModelBatch
+    solution: torch.Tensor
 
-    def __call__(self, batch: List[Dict]) -> ModelBatch: # ModelInput
-        if self.with_coords:
-            coords_keys = ["x", "y", "z"]
-
-            coords = dict().fromkeys(coords_keys)
-
-            # for key in coords_keys:
-            #     coords[key] = torch.stack([item[key] for item in batch], dim=0)
-            for key in batch[0]["coords"].keys():
-                coords[key] = torch.stack([item["coords"][key] for item in batch], dim=0)
+    def __new__(
+        cls,
+        model_batch: ModelBatch = ModelBatch(),
+        solution: torch.Tensor = torch.tensor([])
+    ):
+        return super().__new__(cls, model_batch=model_batch, solution=solution)
 
 
-                coords[key].requires_grad_(True)
-        else:
-            coords = None
+class Collator(ABC):
+    def __init__(self):
+        pass
 
-        if self.with_time:
-            time = torch.stack([item["time"] for item in batch], dim=0) 
+    def __call__(self, batch: List[Dict]) -> ModelBatch:
+        pass
 
+
+class BaseCollator(Collator):
+    def __call__(self, batch: List[Dict]) -> ModelBatch:
+        coords = dict()
+
+        _item = batch[0]
+
+        for key in _item["coords"].keys():
+            coords[key] = torch.stack([item["coords"][key] for item in batch], dim=0)
+            coords[key].requires_grad_(True)
+
+
+        if _item["time"].__len__() > 0:
+            time = torch.stack([item["time"] for item in batch], dim=0)
             time.requires_grad_(True)
         else:
-            time = None
-
+            time = torch.tensor([])
 
         return ModelBatch(
             coords=Coords(**coords), 
             time=time
         )
-
-        # return ModelInput(
-        #     **coords, 
-        #     time=time
-        # )
     
 
+@dataclass
 class BaseCollator2D:
-    def __init__(self, with_coords: bool = True, with_time: bool = True, seq_len: int = 128):
-        self.with_coords = with_coords
-        self.with_time = with_time
-        self.seq_len = seq_len
+    seq_len: int = 128
 
-    def __call__(self, batch: List[Dict]) -> ModelInput:
+    def __call__(self, batch: List[Dict]) -> ModelBatch:
         batch_size = len(batch)
 
-        if self.with_coords:
-            coords_keys = ["x", "y", "z"]
+        coords = dict()
+        
+        _item = batch[0]
 
-            coords = dict().fromkeys(coords_keys)
+        for key in _item["coords"].keys():
+            coords[key] = torch.stack([item[key] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
+            coords[key].requires_grad_(True)
 
-            for key in batch[0].keys():
-                coords[key] = torch.stack([item[key] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
 
-                coords[key].requires_grad_(True)
-        else:
-            coords = None
-
-        if self.with_time:
+        if _item["time"].__len__() > 0:
             time = torch.stack([item["time"] for item in batch], dim=0).view(batch_size * self.seq_len, 1)
-
             time.requires_grad_(True)
         else:
-            time = None
+            time = torch.tensor([])
 
-        return ModelInput(
-            **coords, 
+
+        return ModelBatch(
+            coords=Coords(**coords), 
             time=time
         )

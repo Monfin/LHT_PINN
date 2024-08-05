@@ -1,8 +1,5 @@
 import torch
 from torch import nn
-from typing import List
-
-from src.data.components.collate import SingleForwardState, ModelOutput
 
 ACTIVATION_TYPE_MAPPING = {
     "tanh": nn.Tanh,
@@ -67,10 +64,11 @@ class LinearDownUpBlock(nn.Module):
         )
 
 
-    def forward(self, x: SingleForwardState) -> ModelOutput:
-        logits = self.cls_layers(x.sequences)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        logits = self.cls_layers(x)
 
-        return ModelOutput(
-            representations=x.sequences,
-            logits=logits
-        )
+        return logits
+        # return ModelOutput(
+        #     model_batch=ModelBatch(),
+        #     solution=logits
+        # )

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from src.data.components.collate import SingleForwardState, ModelInput
+from src.data.components.collate import ModelBatch
 
 
 class MainEncoderLayer(nn.Module):
@@ -34,7 +34,7 @@ class MainEncoderLayer(nn.Module):
         )
         
 
-    def forward(self, inputs: ModelInput) -> SingleForwardState:
+    def forward(self, inputs: ModelBatch) -> torch.Tensor:
 
         # coords = [item for item in inputs if item is not None] # TODO        
         coords = [coord for coord in inputs.coords if coord is not None]
@@ -54,6 +54,4 @@ class MainEncoderLayer(nn.Module):
         x = self.dropout(emb)
         x = self.out_linear_block(x)
 
-        return SingleForwardState(
-            sequences=x
-        )
+        return x # ForwardState(state=x)
