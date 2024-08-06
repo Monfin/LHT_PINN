@@ -59,8 +59,7 @@ class LinearDownUpBlock(nn.Module):
         self.cls_layers = nn.Sequential(
             self.dropout,
             self.linear_block,
-            self.out_block,
-            self.act()
+            self.out_block
         )
 
 
@@ -68,7 +67,3 @@ class LinearDownUpBlock(nn.Module):
         logits = self.cls_layers(x)
 
         return logits
-        # return ModelOutput(
-        #     model_batch=ModelBatch(),
-        #     solution=logits
-        # )

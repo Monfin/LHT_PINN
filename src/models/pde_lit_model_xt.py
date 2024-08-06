@@ -6,7 +6,7 @@ from typing import Dict
 import torch
 from torch import nn
 
-from src.models.components.pde_nn import PDESimpleNN, XPINN
+from src.models.components.pde_nn import SimplePINN, TracedSimplePINN
 
 from torchmetrics import MinMetric, MeanMetric
 from torchmetrics.regression import RelativeSquaredError
@@ -29,7 +29,7 @@ METRICS_MAPPING = {
 class PDELitModule(L.LightningModule):
     def __init__(
             self, 
-            net: PDESimpleNN,
+            net: SimplePINN,
 
             train_batch_size: int,
             val_batch_size: int,
@@ -452,7 +452,7 @@ class PDELitModule(L.LightningModule):
         if self.hparams.compile and stage == "fit":
             self.net = torch.jit.trace(
                 self.net, 
-                ModelBatch(coords=Coords(x=torch.zeros((1, 1))), time=torch.zeros((1, 1)))
+                ModelBatch(coords=Coords(x=torch.randn((16, 1))), time=torch.zeros((16, 1)))
             )
             self.net = torch.compile(self.net)
 

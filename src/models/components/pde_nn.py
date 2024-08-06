@@ -3,10 +3,10 @@ from torch import nn
 
 from typing import List
 
-from src.data.components.collate import ModelBatch, ModelOutput, Coords
+from src.data.components.collate import ModelBatch, Coords
 
 
-class PDESimpleNN(nn.Module):
+class SimplePINN(nn.Module):
     def __init__(
             self, 
             layers: List[nn.Module], 
@@ -25,9 +25,9 @@ class PDESimpleNN(nn.Module):
     
 
 # for tracing
-class XPINN(PDESimpleNN):
+class TracedSimplePINN(SimplePINN):
     def __init__(self, **kwargs):
-        super(XPINN, self).__init__(**kwargs)
+        super(TracedSimplePINN, self).__init__(**kwargs)
 
 
     def forward(self, coords: Coords, time: torch.Tensor) -> torch.Tensor:

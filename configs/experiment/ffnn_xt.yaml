@@ -17,7 +17,7 @@ seed: 12345
 
 logger:
   mlflow:
-    experiment_name: ff_pinn_emb16
+    experiment_name: ff_pinn_emb32
     run_name: PINN_basic
 
 # set data params
@@ -29,9 +29,10 @@ data:
     n_samples: 200_000
 
     coords_limits: # num_coords == num_elements
-      x: [-1, 1]
+      x: [-3, 3]
 
     time_limits: [0, 10]
+    extreme_time: True
 
   collator:
     _target_: src.data.components.collate.BaseCollator
@@ -71,7 +72,7 @@ model:
     _target_: torch.optim.Adam
     _partial_: True
     lr: 0.5e-3
-    weight_decay: 1.0e-4
+    weight_decay: 1.0e-5
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -104,6 +105,9 @@ model:
     ic:
       - _target_: src.models.components.utils.conditions.InitialConditions
         coords_limits: ${data.dataset.coords_limits}
+
+      - _target_: src.models.components.utils.conditions.InitialConditions
+        coords_limits: ${data.dataset.coords_limits}
     
     bc:
       - _target_: src.models.components.utils.conditions.BoundaryXYZConditions
@@ -114,8 +118,8 @@ model:
 
   net:
     # _target_: src.models.components.pde_nn.PDESimpleNN
-    _target_: src.models.components.pde_nn.XPINN
-    embedding_dim: 16
+    _target_: src.models.components.pde_nn.TracedSimplePINN
+    embedding_dim: 32
 
     ### Main layers (merged components)
     layers:
@@ -125,7 +129,7 @@ model:
 
         embedding_dim: ${model.net.embedding_dim}
 
-        dropout_inputs: 0.0
+        dropout_inputs: 0.3
 
         num_coords: ${model.num_coords}
 
@@ -141,5 +145,5 @@ model:
         out_features: 1
         activation_type: tanh
 
-        num_layers: 4
-        use_batch_norm: False
+        num_layers: 2
+        use_batch_norm: True

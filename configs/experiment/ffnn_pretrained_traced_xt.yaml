@@ -62,7 +62,7 @@ model:
   _target_: src.models.pde_lit_model_xt.PDELitModule
   _recursive_: True
 
-  trace: True
+  compile: True
 
   train_batch_size: ${data.train_batch_size}
   val_batch_size: ${data.val_batch_size}
@@ -115,7 +115,7 @@ model:
         temperature: 0.0
 
   net:
-    _target_: src.models.components.pde_nn.XPINN
+    _target_: src.models.components.pde_nn.TracedSimplePINN
     embedding_dim: 16
 
     ### Main layers (merged components)

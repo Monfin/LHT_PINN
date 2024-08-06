@@ -25,33 +25,43 @@ class MainEncoderLayer(nn.Module):
         )
 
         self.linear_block_t = nn.Sequential(
-            nn.Linear(1, embedding_dim),
+            nn.Linear(4, embedding_dim),
             nn.Tanh()
         )
 
-        self.out_linear_block = nn.Linear(
-            embedding_dim * (num_coords + 1), embedding_dim
+        self.out_linear_block = nn.Sequential(
+            nn.Linear(
+                embedding_dim * (num_coords + 1), embedding_dim
+            ),
+            nn.BatchNorm1d(embedding_dim)
         )
+        self.res_bn = nn.BatchNorm1d(embedding_dim)
         
 
     def forward(self, inputs: ModelBatch) -> torch.Tensor:
-
-        # coords = [item for item in inputs if item is not None] # TODO        
-        coords = [coord for coord in inputs.coords if coord is not None]
-
-
         coords_emb = torch.concatenate(
             [
-                head(coord) for coord, head in zip(coords, self.branched_linear_block_xyz)
+                head(coord) for coord, head in zip(inputs.coords, self.branched_linear_block_xyz)
             ], dim=1
         )
 
-        time_emb = self.linear_block_t(inputs.time)
+        time_emb = self.linear_block_t(
+            torch.concatenate(
+                (
+                    inputs.time,
+                    torch.log(inputs.time + 1e-6), 
+                    torch.cos(inputs.time),
+                    torch.sin(inputs.time)
+                ), dim=-1
+            )
+        )
+
+        coords_time_emb = torch.concatenate([coords_emb, time_emb], dim=-1)
 
         # emb = torch.stack([coords_emb, time_emb], dim=-1) # (batch_size, emb_dim, num_coords + 1)
-        emb = torch.concatenate([coords_emb, time_emb], dim=-1)
+        emb = self.out_linear_block(self.dropout(coords_time_emb))
+        res_emb = self.res_bn(coords_emb * time_emb)
 
-        x = self.dropout(emb)
-        x = self.out_linear_block(x)
+        x = emb + res_emb
 
-        return x # ForwardState(state=x)
+        return x

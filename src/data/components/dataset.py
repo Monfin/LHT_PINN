@@ -65,23 +65,39 @@ class SpatialTemporalDomain(torch.utils.data.Dataset):
             self, 
             coords_limits: Dict[str, List[float]],
             time_limits: Dict[str, float],
-            n_samples: int = 10_000
+            n_samples: int = 10_000,
+            extreme_time: bool = False
         ) -> None:
 
         self.data_size = n_samples
+        
+        if extreme_time:
+            assert self.data_size % 10 == 0, f"n_samples % 10 != 0"
+
+            _future_size = self.data_size // 10
+
+            self.T: torch.Tensor = torch.empty(size=(self.data_size - _future_size, 1))
+            self.T.uniform_(time_limits[0], time_limits[1])
+
+            _future: torch.Tensor = torch.empty(size=(_future_size, 1))
+            _future.uniform_(time_limits[1], time_limits[1] * 10)
+
+            self.T = torch.concatenate((self.T, _future))
+            self.T = self.T[torch.randperm(self.data_size)]
+        else:
+            self.T: torch.Tensor = torch.empty(size=(self.data_size, 1))
+            self.T.uniform_(time_limits[0], time_limits[1])
+
 
         coords = dict()
 
         for coord_key, coord_limits in coords_limits.items():
-            X: torch.Tensor = torch.empty(size=(n_samples, 1))
+            X: torch.Tensor = torch.empty(size=(self.data_size, 1))
             X.uniform_(coord_limits[0], coord_limits[1])
 
             coords[coord_key] = X
 
         self.coords = coords
-
-        self.T: torch.Tensor = torch.empty(size=(n_samples, 1))
-        self.T.uniform_(time_limits[0], time_limits[1])
 
 
     def __getitem__(self, idx: int):
